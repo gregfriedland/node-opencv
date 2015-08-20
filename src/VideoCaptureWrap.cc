@@ -33,7 +33,8 @@ VideoCaptureWrap::Init(Handle<Object> target) {
 
 	NODE_SET_PROTOTYPE_METHOD(ctor, "read", Read);
 	NODE_SET_PROTOTYPE_METHOD(ctor, "setWidth", SetWidth);
-	NODE_SET_PROTOTYPE_METHOD(ctor, "setHeight", SetHeight);
+    NODE_SET_PROTOTYPE_METHOD(ctor, "setHeight", SetHeight);
+    NODE_SET_PROTOTYPE_METHOD(ctor, "setFrameRate", SetFrameRate);
 	NODE_SET_PROTOTYPE_METHOD(ctor, "setPosition", SetPosition);
   NODE_SET_PROTOTYPE_METHOD(ctor, "close", Close);
   NODE_SET_PROTOTYPE_METHOD(ctor, "ReadSync", ReadSync);
@@ -112,6 +113,23 @@ NAN_METHOD(VideoCaptureWrap::SetHeight){
 
 	NanReturnUndefined();
 }
+
+NAN_METHOD(VideoCaptureWrap::SetFrameRate){
+
+    NanScope();
+    VideoCaptureWrap *v = ObjectWrap::Unwrap<VideoCaptureWrap>(args.This());
+
+    if(args.Length() != 1)
+        NanReturnUndefined();
+    
+    int fps = args[0]->IntegerValue();
+
+    if(v->cap.isOpened())
+        v->cap.set(CV_CAP_PROP_FPS, fps);
+
+    NanReturnUndefined();
+}
+
 
 NAN_METHOD(VideoCaptureWrap::SetPosition){
 

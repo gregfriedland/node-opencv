@@ -17,6 +17,7 @@ class VideoCaptureWrap: public node::ObjectWrap {
       //(Optional) For setting width and height of the input video stream 
       static NAN_METHOD(SetWidth);
       static NAN_METHOD(SetHeight);
+      static NAN_METHOD(SetFrameRate);
       
       // to set frame position
       static NAN_METHOD(SetPosition);
