@@ -67,7 +67,10 @@ VideoCaptureWrap::VideoCaptureWrap(int device){
 	NanScope();
 	cap.open(device);
 
-    readImages = {new Matrix(), new Matrix()};
+	readImages[0] = new Matrix();
+	readImages[1] = new Matrix();
+	readCurrentImageIndex = 0;
+	isReading = false;
 
 	if(!cap.isOpened()){
     NanThrowError("Camera could not be opened");

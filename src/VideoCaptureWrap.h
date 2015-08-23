@@ -31,8 +31,8 @@ class VideoCaptureWrap: public node::ObjectWrap {
       //close the stream
       static NAN_METHOD(Close);
 
-      std::vector<Matrix*> readImages;
-      unsigned int readCurrentImageIndex = 0;
-      bool isReading = false;
+      Matrix* readImages[2];
+      unsigned int readCurrentImageIndex;
+      bool isReading;
 };
 
