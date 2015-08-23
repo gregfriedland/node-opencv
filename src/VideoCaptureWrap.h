@@ -1,4 +1,7 @@
 #include "OpenCV.h"
+#include <vector>
+
+class Matrix;
 
 class VideoCaptureWrap: public node::ObjectWrap {
   public:
@@ -10,6 +13,7 @@ class VideoCaptureWrap: public node::ObjectWrap {
       
       VideoCaptureWrap(const std::string& filename);
       VideoCaptureWrap(int device); 
+      ~VideoCaptureWrap();
 
       static NAN_METHOD(Read);
       static NAN_METHOD(ReadSync);
@@ -26,5 +30,9 @@ class VideoCaptureWrap: public node::ObjectWrap {
 
       //close the stream
       static NAN_METHOD(Close);
+
+      std::vector<Matrix*> readImages;
+      unsigned int readCurrentImageIndex = 0;
+      bool isReading = false;
 };
 

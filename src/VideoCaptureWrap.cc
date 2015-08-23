@@ -17,10 +17,6 @@ struct videocapture_baton {
 	uv_work_t request;
 };
 
-static vector<Matrix*> vcReadImages = {new Matrix(), new Matrix()};
-static unsigned int vcReadCurrentImageIndex = 0;
-static bool vcIsReading = false;
-
 void
 VideoCaptureWrap::Init(Handle<Object> target) {
   NanScope();
@@ -71,6 +67,8 @@ VideoCaptureWrap::VideoCaptureWrap(int device){
 	NanScope();
 	cap.open(device);
 
+    readImages = {new Matrix(), new Matrix()};
+
 	if(!cap.isOpened()){
     NanThrowError("Camera could not be opened");
 	}
@@ -83,7 +81,11 @@ VideoCaptureWrap::VideoCaptureWrap(const std::string& filename){
 	if(!cap.isOpened()){
     NanThrowError("Video file could not be opened (opencv reqs. non relative paths)");
 	}
+}
 
+VideoCaptureWrap::~VideoCaptureWrap() {
+    delete readImages[0];
+    delete readImages[1];
 }
 
 NAN_METHOD(VideoCaptureWrap::SetWidth){
@@ -163,14 +165,14 @@ NAN_METHOD(VideoCaptureWrap::Close){
 class AsyncVCWorker : public NanAsyncWorker {
  public:
   AsyncVCWorker(NanCallback *callback, VideoCaptureWrap* vc)
-    : NanAsyncWorker(callback), vc(vc), readFromCamera(!vcIsReading) {
-        vcIsReading = true;
+    : NanAsyncWorker(callback), vc(vc), readFromCamera(!vc->isReading) {
+        vc->isReading = true;
         if (readFromCamera) 
             // read into current slot
-            matrix = vcReadImages[vcReadCurrentImageIndex];
+            matrix = vc->readImages[vc->readCurrentImageIndex];
         else
             // return image from previously read slot
-            matrix = vcReadImages[1 - vcReadCurrentImageIndex];
+            matrix = vc->readImages[1 - vc->readCurrentImageIndex];
     }
   ~AsyncVCWorker() {}
 
@@ -198,8 +200,8 @@ class AsyncVCWorker : public NanAsyncWorker {
     Local<Boolean> didRead = NanNew(readFromCamera);
 
     // update the slot to read the next image into
-    vcReadCurrentImageIndex = 1 - vcReadCurrentImageIndex;    
-    vcIsReading = false;
+    vc->readCurrentImageIndex = 1 - vc->readCurrentImageIndex;    
+    vc->isReading = false;
 
     Local<Value> argv[] = {
         NanNull()
