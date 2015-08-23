@@ -17,6 +17,9 @@ struct videocapture_baton {
 	uv_work_t request;
 };
 
+static vector<Matrix*> vcReadImages = {new Matrix(), new Matrix()};
+static unsigned int vcReadCurrentImageIndex = 0;
+static bool vcIsReading = false;
 
 void
 VideoCaptureWrap::Init(Handle<Object> target) {
@@ -159,8 +162,16 @@ NAN_METHOD(VideoCaptureWrap::Close){
 
 class AsyncVCWorker : public NanAsyncWorker {
  public:
-  AsyncVCWorker(NanCallback *callback, VideoCaptureWrap* vc, Matrix* matrix)
-    : NanAsyncWorker(callback), vc(vc), matrix(matrix) {}
+  AsyncVCWorker(NanCallback *callback, VideoCaptureWrap* vc)
+    : NanAsyncWorker(callback), vc(vc), readFromCamera(!vcIsReading) {
+        vcIsReading = true;
+        if (readFromCamera) 
+            // read into current slot
+            matrix = vcReadImages[vcReadCurrentImageIndex];
+        else
+            // return image from previously read slot
+            matrix = vcReadImages[1 - vcReadCurrentImageIndex];
+    }
   ~AsyncVCWorker() {}
 
   // Executed inside the worker-thread.
@@ -168,7 +179,8 @@ class AsyncVCWorker : public NanAsyncWorker {
   // here, so everything we need for input and output
   // should go on `this`.
   void Execute () {
-	  this->vc->cap.read(matrix->mat);
+      if (readFromCamera)
+        this->vc->cap.read(matrix->mat);
   }
 
   // Executed when the async work is complete
@@ -183,13 +195,20 @@ class AsyncVCWorker : public NanAsyncWorker {
 	  mat = this->matrix->mat;
 	  img->mat = mat;
 
+    Local<Boolean> didRead = NanNew(readFromCamera);
+
+    // update the slot to read the next image into
+    vcReadCurrentImageIndex = 1 - vcReadCurrentImageIndex;    
+    vcIsReading = false;
+
     Local<Value> argv[] = {
         NanNull()
       , im_to_return
+      , didRead
     };
-    
+
     TryCatch try_catch;
-    callback->Call(2, argv);
+    callback->Call(3, argv);
     if (try_catch.HasCaught()) {
       FatalException(try_catch);
     }
@@ -198,6 +217,7 @@ class AsyncVCWorker : public NanAsyncWorker {
  private:
   VideoCaptureWrap *vc;
   Matrix* matrix;
+  bool readFromCamera;
 };
 
 
@@ -205,13 +225,14 @@ class AsyncVCWorker : public NanAsyncWorker {
 NAN_METHOD(VideoCaptureWrap::Read) {
 
 	NanScope();
-	VideoCaptureWrap *v = ObjectWrap::Unwrap<VideoCaptureWrap>(args.This());
 
-	REQ_FUN_ARG(0, cb);
+  	  VideoCaptureWrap *v = ObjectWrap::Unwrap<VideoCaptureWrap>(args.This());
 
-  NanCallback *callback = new NanCallback(cb.As<Function>());
-  NanAsyncQueueWorker(new AsyncVCWorker(callback, v, new Matrix()));	
-	
+	  REQ_FUN_ARG(0, cb);
+
+      NanCallback *callback = new NanCallback(cb.As<Function>());
+      NanAsyncQueueWorker(new AsyncVCWorker(callback, v));	
+
 	NanReturnUndefined();
 }
 

@@ -1,20 +1,23 @@
-var cv = require('../lib/opencv');
+var cv = require('opencv');
 
-try {
-  var camera = new cv.VideoCapture(0);
-  var window = new cv.NamedWindow('Video', 0)
-  /*
-  setInterval(function() {
-    camera.read(function(err, im) {
-      if (err) throw err;
-      console.log(im.size())
-      if (im.size()[0] > 0 && im.size()[1] > 0){
-        window.show(im);
+var camera = new cv.VideoCapture(0);
+
+var startTime = new Date().getTime();
+var count = 0;
+
+setInterval(function() {
+  camera.read(function(err, im, didRead) {
+    if (err) throw err;
+    if (didRead == false) {
+      // console.log("Skipped read.");
+    } else {
+      count++;
+      var currTime = new Date().getTime();
+      if (currTime - startTime > 1000) {
+        console.log("fps: " + (count * 1000 / (currTime - startTime)));
+        startTime = currTime;
+        count = 0;
       }
-      window.blockingWaitKey(0, 50);
-    });
-  }, 20);
-  */
-} catch (e){
-  console.log("Couldn't start camera:", e)
-}
+    }
+  });
+}, 20);
