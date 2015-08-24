@@ -169,18 +169,10 @@ class AsyncVCWorker : public NanAsyncWorker {
  public:
   AsyncVCWorker(NanCallback *callback, VideoCaptureWrap* vc)
     : NanAsyncWorker(callback), vc(vc) {
-        if (vc->isReading) {
-          cout << "1A: entering when isReading is true\n";
-          readFromCamera = false;
-          // return image from previously read slot
-          matrix = vc->readImages[1 - vc->readCurrentImageIndex];
-        } else {
-          cout << "1B: entering when isReading is false\n";
-          vc->isReading = true;
-          readFromCamera = true;
-          // read into current slot
-          matrix = vc->readImages[vc->readCurrentImageIndex];
-        }
+      assert(vc->isReading);
+      cout << "1B: entering when isReading is false\n";
+      // read into current slot
+      matrix = vc->readImages[vc->readCurrentImageIndex];
     }
   ~AsyncVCWorker() {}
 
@@ -189,8 +181,7 @@ class AsyncVCWorker : public NanAsyncWorker {
   // here, so everything we need for input and output
   // should go on `this`.
   void Execute () {
-      if (readFromCamera)
-        this->vc->cap.read(matrix->mat);
+    this->vc->cap.read(matrix->mat);
   }
 
   // Executed when the async work is complete
@@ -205,26 +196,18 @@ class AsyncVCWorker : public NanAsyncWorker {
 	  mat = this->matrix->mat;
 	  img->mat = mat;
 
-    Local<Boolean> didRead = NanNew(readFromCamera);
-
     // update the slot to read the next image into
-    if (readFromCamera) {
-      cout << "2B: exiting when isReading was false\n";
-      vc->readCurrentImageIndex = 1 - vc->readCurrentImageIndex;    
-      vc->isReading = false;
-    } else {
-      cout << "2A: exiting when isReading was true\n";
-    }
-
+    cout << "2B: exiting when isReading was false\n";
+    vc->readCurrentImageIndex = 1 - vc->readCurrentImageIndex;    
+    vc->isReading = false;
 
     Local<Value> argv[] = {
         NanNull()
       , im_to_return
-      , didRead
     };
 
     TryCatch try_catch;
-    callback->Call(3, argv);
+    callback->Call(2, argv);
     if (try_catch.HasCaught()) {
       FatalException(try_catch);
     }
@@ -233,7 +216,6 @@ class AsyncVCWorker : public NanAsyncWorker {
  private:
   VideoCaptureWrap *vc;
   Matrix* matrix;
-  bool readFromCamera;
 };
 
 
@@ -246,8 +228,13 @@ NAN_METHOD(VideoCaptureWrap::Read) {
 
 	  REQ_FUN_ARG(0, cb);
 
+    // only enter callback if we are not waiting on one
+    if (!v->isReading) {
+      v->isReading = true;
       NanCallback *callback = new NanCallback(cb.As<Function>());
       NanAsyncQueueWorker(new AsyncVCWorker(callback, v));	
+    } else
+      cout << "Ignoring callback because currently reading.\n";
 
 	NanReturnUndefined();
 }
