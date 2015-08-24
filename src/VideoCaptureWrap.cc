@@ -168,14 +168,19 @@ NAN_METHOD(VideoCaptureWrap::Close){
 class AsyncVCWorker : public NanAsyncWorker {
  public:
   AsyncVCWorker(NanCallback *callback, VideoCaptureWrap* vc)
-    : NanAsyncWorker(callback), vc(vc), readFromCamera(!vc->isReading) {
-        vc->isReading = true;
-        if (readFromCamera) 
-            // read into current slot
-            matrix = vc->readImages[vc->readCurrentImageIndex];
-        else
-            // return image from previously read slot
-            matrix = vc->readImages[1 - vc->readCurrentImageIndex];
+    : NanAsyncWorker(callback), vc(vc) {
+        if (vc->isReading) {
+          cout << "1A: entering when isReading is true\n";
+          readFromCamera = false;
+          // return image from previously read slot
+          matrix = vc->readImages[1 - vc->readCurrentImageIndex];
+        } else {
+          cout << "1B: entering when isReading is false\n";
+          vc->isReading = true;
+          readFromCamera = true;
+          // read into current slot
+          matrix = vc->readImages[vc->readCurrentImageIndex];
+        }
     }
   ~AsyncVCWorker() {}
 
@@ -203,8 +208,14 @@ class AsyncVCWorker : public NanAsyncWorker {
     Local<Boolean> didRead = NanNew(readFromCamera);
 
     // update the slot to read the next image into
-    vc->readCurrentImageIndex = 1 - vc->readCurrentImageIndex;    
-    vc->isReading = false;
+    if (readFromCamera) {
+      cout << "2B: exiting when isReading was false\n";
+      vc->readCurrentImageIndex = 1 - vc->readCurrentImageIndex;    
+      vc->isReading = false;
+    } else {
+      cout << "2A: exiting when isReading was true\n";
+    }
+
 
     Local<Value> argv[] = {
         NanNull()
