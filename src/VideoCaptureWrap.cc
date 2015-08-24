@@ -170,7 +170,6 @@ class AsyncVCWorker : public NanAsyncWorker {
   AsyncVCWorker(NanCallback *callback, VideoCaptureWrap* vc)
     : NanAsyncWorker(callback), vc(vc) {
       assert(vc->isReading);
-      cout << "1B: entering when isReading is false\n";
       // read into current slot
       matrix = vc->readImages[vc->readCurrentImageIndex];
     }
@@ -197,7 +196,6 @@ class AsyncVCWorker : public NanAsyncWorker {
 	  img->mat = mat;
 
     // update the slot to read the next image into
-    cout << "2B: exiting when isReading was false\n";
     vc->readCurrentImageIndex = 1 - vc->readCurrentImageIndex;    
     vc->isReading = false;
 
@@ -233,9 +231,8 @@ NAN_METHOD(VideoCaptureWrap::Read) {
       v->isReading = true;
       NanCallback *callback = new NanCallback(cb.As<Function>());
       NanAsyncQueueWorker(new AsyncVCWorker(callback, v));	
-    } else
-      cout << "Ignoring callback because currently reading.\n";
-
+    }
+    
 	NanReturnUndefined();
 }
 
